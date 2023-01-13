@@ -71,6 +71,13 @@ countW grid x y = countVisible (iterF (grid !! y) x) (indexGrid grid x y)
 countCell :: [[Integer]] -> Int -> Int -> Integer
 countCell grid x y = (countN grid x y) * (countS grid x y) * (countE grid x y) * (countW grid x y)
 
+countGridRow :: [[Integer]] -> Int -> Integer
+countGridRow grid y = maximum [countCell grid x y | x <- [0..l]]
+  where l = (length grid) - 1
+
+countGrid :: [[Integer]] -> Integer
+countGrid grid = maximum [countGridRow grid y | y <- [0..((length grid) - 1)]]
+
 
 -- file reading utilities
 parseLine :: String -> [Integer]
@@ -84,9 +91,9 @@ parseText text = fmap (\l -> parseLine l) (lines text)
 main :: IO ()
 main = do
 
-  text <- readFile "test.txt"
+  text <- readFile "input.txt"
 
   let grid = parseText text
   let part1 = sum (fmap sum (checkGrid grid))
 
-  print $ countCell grid 2 1
+  printf "part 1: %d\n" part1
