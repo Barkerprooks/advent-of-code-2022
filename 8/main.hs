@@ -94,6 +94,6 @@ main = do
   text <- readFile "input.txt"
 
   let grid = parseText text
-  let part1 = sum (fmap sum (checkGrid grid))
 
-  printf "part 1: %d\n" part1
+  printf "part 1: %d\n" (sum (fmap (sum) (checkGrid grid)))
+  printf "part 2: %d\n" (countGrid grid)
