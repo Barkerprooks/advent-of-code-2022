@@ -1,4 +1,5 @@
 elves = []
+
 open("input.txt") do stream
 	for chunk in collect(eachsplit(read(stream, String), "\n\n"))
 		sum = 0
