@@ -4,174 +4,156 @@
 #include <string.h>
 #include <unistd.h>
 #include <limits.h>
+#include <sys/stat.h>
 
+typedef struct v2 { int x, y; } v2_t;
+typedef struct v2_list {
+	v2_t *data;
+	ssize_t size, capacity;
+} v2_list_t;
 
-enum direction { U = 85, D = 68, L = 76, R = 82};
-struct cell { int x, y; };
-struct list {
-	struct cell *cells;
-	int length, capacity;
-};
-struct move {
-	enum direction direction;
-	int count;
-};
+ssize_t insert_v2(v2_list_t *, v2_t);
+v2_t parse_input(const char *, v2_list_t *);
 
-int create_cell_list(struct list *, int);
-int expand_cell_list(struct list *, int);
-int append_cell_list(struct list *, int, int);
-void delete_cell_list(struct list *);
+void chain_link_update(v2_t *, v2_t *);
+void chain_update();
 
-struct cell find_max_cell(struct list);
-struct cell find_min_cell(struct list);
-
-void parse(const char *, struct move *);
-int parse_input(const char *, struct list *);
-int update_cell(struct cell *, struct move *);
+void print_grid(char *, v2_t, v2_t, v2_t);
 
 int main(void) {
-	
-	struct list list;
-	struct cell max, min;
 
-	parse_input("input.txt", &list);
+	v2_list_t list = {NULL, 0, 0};
+	v2_t delta, head = {0, 0}, tail = {0, 0}, dim;
+	ssize_t i, p1 = 0;
 
-	max = find_max_cell(list);
-	min = find_min_cell(list);
+	dim = parse_input("input.txt", &list);
 
-	printf("max (x: %d, y: %d)\n", max.x, max.y);
-	printf("min (x: %d, y: %d)\n", min.x, min.y);
+	char *grid = calloc(sizeof(char), dim.x * dim.y);
+	memset(grid, '.', sizeof(char) * dim.x * dim.y);
 
-	for(int i = 0; i < list.length; i++)
-		printf("%d: %d\n", i, list.cells[i].x);
+	head = list.data[0];
+	tail = head;
 
-	delete_cell_list(&list);
+	for (i = 1; i < list.size; i++) {
+		
+		head = list.data[i];
+		
+		delta.x = head.x - tail.x;
+		delta.y = head.y - tail.y;
+
+		if (abs(delta.x) > 1) {
+			tail.x += delta.x > 0 ? 1 : -1;
+			if (abs(delta.y) >= 1)
+				tail.y += delta.y > 0 ? 1 : -1;
+		} else if (abs(delta.y) > 1) {
+			tail.y += delta.y > 0 ? 1 : -1;
+			if (abs(delta.x) >= 1)
+				tail.x += delta.x > 0 ? 1 : -1;
+		}
+
+		grid[tail.x + dim.x * tail.y] = '*';
+	}
+
+	for (ssize_t i = 0; i < dim.x * dim.y; i++)	
+		if (grid[i] == '*') p1++;
+
+	printf("part 1: %d\n", p1);
 
 	return 0;
 }
 
-int create_cell_list(struct list *list, int n) {
+ssize_t insert_v2(v2_list_t *list, v2_t v2) {
 	
-	list->cells = malloc(sizeof(struct cell) * n);
-	
-	if (!list->cells)
-		return 0;
-	
-	list->length = 0;
-	list->capacity = n;
+	ssize_t size = list->size, capacity = list->capacity;
 
-	return 1;
-}
-
-int expand_cell_list(struct list *list, int n) {
+	if (size == capacity) {
 	
-	struct cell *new = realloc(list->cells, sizeof(struct cell) * n);
-	
-	if (!new)
-		return 0;
-	
-	list->cells = new;
-	list->capacity += n;
-	
-	return 1;
-}
-
-
-int append_cell_list(struct list *list, int x, int y) {
-	
-	if (list->length + 1 > list->capacity)
-		expand_cell_list(list, 64);
-
-	struct cell cell = {x, y};
-
-	list->cells[list->length++] = cell;
-}
-
-void delete_cell_list(struct list *list) {
-	free(list->cells);
-	list->length = 0;
-	list->capacity = 0;
-}
-
-
-struct cell find_max_cell(struct list list) {
-	
-	struct cell cell, max = {0, 0};
-	
-	for(int i = 0; i < list.length; i++) {
-		cell = list.cells[i];
+		capacity = capacity ? capacity * 2 : 32;
+		v2_t *p = realloc(list->data, sizeof(v2_t) * capacity);
 		
-		if (cell.x > max.x)
-			max.x = cell.x;
+		if (p == NULL)
+			return -1;
 
-		if (cell.y > max.y)
-			max.y = cell.y;
+		list->capacity = capacity;
+		list->data = p;
 	}
 
-	return max;
+	list->data[size] = v2;
+	return list->size++;
 }
 
-struct cell find_min_cell(struct list list) {
+v2_t parse_input(const char *path, v2_list_t *list) {
+
+	v2_t dim, min = {INT_MAX, INT_MAX}, max = {0, 0}, v2 = {0, 0};
 	
-	struct cell cell, min = {INT_MAX, INT_MAX};
+	char *buf, *cpy, *ref;
+	ssize_t bytes;
+	int fd, moves;
 	
-	for(int i = 0; i < list.length; i++) {
-		cell = list.cells[i];
-		
-		if (cell.x < min.x)
-			min.x = cell.x;
+	struct stat info;
 
-		if (cell.y < min.y)
-			min.y = cell.y;
-	}
-	
-	return min;
-}
+	if (stat(path, &info) != 0)
+		return dim;
 
+	buf = calloc(sizeof(char), info.st_size + 1);
+	fd = open(path, O_RDONLY);
+	bytes = read(fd, buf, info.st_size);
 
-void parse(const char *line, struct move *move) {
-	move->direction = (enum direction) line[0];
-	move->count = atoi(line + (sizeof(char) * 2));
-}
-
-int parse_input(const char *path, struct list *list) {
-	
-	struct cell cell = { 0, 0 };
-	struct move move;
-	
-	char *ref, *cpy, buffer[8192] = { 0 };
-	int index = 0, fd = open(path, O_RDONLY);
-
-	if (fd < 0)
-		return fd;
-
-	read(fd, buffer, 8192);
 	close(fd);
 
-	create_cell_list(list, 64);
+	if (bytes != info.st_size)
+		return dim;
 
-	cpy = buffer;
+	insert_v2(list, v2);
 
-	while((ref = strsep(&cpy, "\n"))) {
-		parse(ref, &move);
-		do {
-			append_cell_list(list, cell.x, cell.y);
-		} while(update_cell(&cell, &move) > 0);
+	cpy = buf;
+	while ((ref = strsep(&cpy, "\n"))) {
+		
+		moves = atoi(ref + 2);
+		
+		while (moves--) {
+			switch (ref[0]) {
+				case 'U': v2.y--;
+					break;
+				case 'D': v2.y++;
+					break;
+				case 'L': v2.x--;
+					break;
+				case 'R': v2.x++;
+					break;
+			}
+			insert_v2(list, v2);
+		}
+
+		if (min.x > v2.x) min.x = v2.x;
+		if (min.y > v2.y) min.y = v2.y;
+		if (max.x < v2.x) max.x = v2.x;
+		if (max.y < v2.y) max.y = v2.y;
 	}
 
-	return --index;
+	free(buf);
+
+	dim.x = abs(min.x) + max.x + 1;
+	dim.y = abs(min.y) + max.y + 1;
+
+	for (ssize_t i = 0; i < list->size; i++) {
+		list->data[i].x += abs(min.x);
+		list->data[i].y += abs(min.y);
+	}
+
+	return dim;
 }
 
-int update_cell(struct cell *cell, struct move *move) {
-	switch(move->direction) {
-		case U: cell->y -= 1;
-			break;
-		case D: cell->y += 1;
-			break;
-		case L: cell->x -= 1;
-			break;
-		case R: cell->x += 1;
-			break;
+void print_grid(char *grid, v2_t dim, v2_t head, v2_t tail) {
+	for (ssize_t y = 0; y < dim.y; y++) {
+		for (ssize_t x = 0; x < dim.x; x++) {
+			if (head.x == x && head.y == y)
+				printf("#");
+			else if (tail.x == x && tail.y == y)
+				printf("$");
+			else
+				printf("%c", grid[x + dim.x * y]);
+		}
+		printf("\n");
 	}
-	return --(move->count);
 }
