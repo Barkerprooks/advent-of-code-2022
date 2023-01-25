@@ -1,3 +1,9 @@
+(defun sample-points ()
+  (loop for i from 20 to 220 by 40
+		collect i))
+
+(defconstant *samples* (sample-points))
+
 (defun read-lines (path)
   "opens a file and returns the lines as a list"
   (with-open-file (s path)
@@ -13,8 +19,7 @@
 		collect (subseq str i j)
 		while j))
 
-(defun parse-instruction (str)
-  (let ((tokens (split str)))
-	(nth (- (length tokens) 1) tokens)))
-
-(print (parse-instruction "addx 1"))
+(defun cycles (str)
+  (if (string= (car (split str)) "addx")
+	2
+	1))
