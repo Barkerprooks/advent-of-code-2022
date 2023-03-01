@@ -32,11 +32,11 @@ public class Main {
 		for (int i = 0; i < buffer.length; i++)
 			buffer[i] = '.';
 
-		if (value < 0 || value > 39)
-			return new String(buffer);
 
-		for (int i = value; i < buffer.length && i < value + 3; i++)
-			buffer[i] = '#';
+		for (int i = value; i < buffer.length && i < value + 3; i++) {
+			if (i >= 0 && i < 40)
+				buffer[i] = '#';
+		}
 
 		return new String(buffer);
 	}
@@ -72,12 +72,14 @@ public class Main {
 			value += instruction.getValue();
 			buffer = drawBuffer(value - 1);
 		}
+
 		System.out.println(String.format("p1: %d\n", total));
 		for (i = 0; i < screen.length; i++) {
 			if (i % 40 == 0)
 				System.out.println();
 			System.out.print(screen[i]);
 		}
+		System.out.println();
 	}
 }
 	
